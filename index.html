@@ -137,8 +137,6 @@
     <button class="tab-btn" onclick="mudarAba('tabPreview', this)">👁️ Grid / Imprimir</button>
 </div>
 
-<div id="pdfWorkspace" style="display: none; position: absolute; top: -9999px; left: -9999px; width: 210mm;"></div>
-
 <script>
     let bancoDeEtiquetas = {}; 
     let templateBase = "";     
@@ -291,7 +289,7 @@
 
         let htmlImpressao = '';
         for (let p = 0; p < totalPaginas; p++) {
-            htmlImpressao += '<div class="folha" style="page-break-after: always;">';
+            htmlImpressao += '<div class="folha" style="page-break-after: always; width: 210mm; height: 297mm;">';
             const startImp = p * maxPorPagina;
             const endImp = startImp + maxPorPagina;
             for (let i = startImp; i < endImp; i++) {
@@ -324,52 +322,53 @@
     }
 
     // ==========================================
-    // 5. GERAÇÃO DE PDF E IMPRESSÃO
+    // 5. GERAÇÃO DE PDF (CORRIGIDA) E IMPRESSÃO
     // ==========================================
     
     // Impressão nativa padrão (Para PC ou Android)
     document.getElementById('btnImprimir').addEventListener('click', () => window.print());
     
-    // GERA O PDF ESTRITAMENTE PERFEITO COM A BIBLIOTECA PARA O iOS
+    // Gera PDF via html2pdf usando string HTML (evita tela em branco)
     document.getElementById('btnGerarPDF').addEventListener('click', function() {
         const btn = this;
         btn.innerText = "⏳ GERANDO PDF...";
         btn.disabled = true;
 
-        // Limpa as margens padrão e sombras para o PDF sair cru e perfeito
-        const cssParaPDF = `
-            <style>
-                ${templateBase}
-                .folha { 
-                    margin: 0 !important; 
-                    padding-top: 10mm !important; /* Respeita a borda superior do adesivo */
-                    box-shadow: none !important; 
-                    width: 210mm !important; 
-                    height: 297mm !important; 
-                }
-                body { background: white !important; }
-            </style>
+        // Montamos o código HTML completo em memória para o html2pdf processar
+        const conteudoHTML = document.getElementById('containerImpressaoOculto').innerHTML;
+        const htmlParaPDF = `
+            <div style="background: white; width: 210mm; margin: 0; padding: 0;">
+                <style>
+                    ${templateBase}
+                    .folha { 
+                        margin: 0 !important; 
+                        padding-top: 10mm !important; 
+                        box-shadow: none !important; 
+                        border: none !important;
+                        background: white !important;
+                    }
+                    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                </style>
+                ${conteudoHTML}
+            </div>
         `;
 
-        // Joga o HTML limpo na div fantasma
-        const workspace = document.getElementById('pdfWorkspace');
-        workspace.innerHTML = cssParaPDF + document.getElementById('containerImpressaoOculto').innerHTML;
-        workspace.style.display = 'block';
-
-        // Configurações do construtor de PDF (Tamanho A4, escala alta para não perder resolução)
+        // Configurações do PDF
         const opt = {
             margin:       0,
-            filename:     'Etiquetas_Lote_TerraForte.pdf',
+            filename:     'Etiquetas_TerraForte.pdf',
             image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak:    { mode: ['css', 'legacy'] }
+            html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        // Roda a biblioteca e cria o PDF
-        html2pdf().set(opt).from(workspace).save().then(() => {
-            workspace.style.display = 'none';
-            workspace.innerHTML = '';
+        // Passa a string HTML diretamente para a biblioteca
+        html2pdf().set(opt).from(htmlParaPDF).save().then(() => {
+            btn.innerText = "📄 GERAR PDF (iOS EPSON)";
+            btn.disabled = false;
+        }).catch(err => {
+            console.error(err);
+            alert("Erro ao gerar PDF.");
             btn.innerText = "📄 GERAR PDF (iOS EPSON)";
             btn.disabled = false;
         });
