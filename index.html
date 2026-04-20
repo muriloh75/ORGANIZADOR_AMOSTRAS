@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Terra Forte - Grid Interativo</title>
+    <style>
+        /* ================= ESTILOS GERAIS ================= */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: #f4f4f4; padding-bottom: 80px; }
+        .container { padding: 20px; }
+        h3 { color: #333; margin-top: 0; text-align: center; }
+        label { font-weight: bold; color: #555; display: block; margin-top: 15px; }
+        
+        input[type="file"], input[type="text"] {
+            width: 100%; padding: 15px; margin: 8px 0; border: 2px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; background: white;
+        }
+        input[type="text"]:focus { border-color: #4CAF50; outline: none; }
+        
+        .status-box { background: #e8f5e9; border-left: 4px solid #4CAF50; padding: 12px; margin-top: 10px; border-radius: 4px; font-weight: bold; color: #2e7d32; }
+        
+        /* Botões */
+        .btn-acao { background: #4CAF50; color: white; border: none; padding: 15px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 10px; }
+        .btn-acao:active { background: #388E3C; }
+
+        /* ================= ABAS E NAVEGAÇÃO ================= */
+        .bottom-bar {
+            position: fixed; bottom: 0; width: 100%; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-around; padding: 10px 0; z-index: 1000;
+        }
+        .tab-btn { background: none; border: none; font-size: 15px; font-weight: bold; color: #888; padding: 10px; width: 33%; cursor: pointer; }
+        .tab-btn.active { color: #4CAF50; border-bottom: 3px solid #4CAF50; }
+        
+        .aba-content { display: none; }
+        #tabBipagem { display: block; }
+
+        /* ================= ABA: O QUE FALTA ================= */
+        #tabFaltam { padding: 20px; background: white; min-height: 80vh; }
+        .grid-pendentes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
+        
+        /* TAG VERMELHA (Falta ler) e VERDE (Já lida) */
+        .tag-id { padding: 10px 15px; border-radius: 5px; font-weight: bold; font-size: 16px; background: #ffebee; color: #c62828; border: 2px solid #ef9a9a; transition: all 0.3s; }
+        .tag-id.lida { background: #e8f5e9; color: #2e7d32; border: 2px solid #81c784; }
+
+        /* ================= ABA: PREVIEW E GRID ================= */
+        #tabPreview { background: white; padding: 10px; min-height: 80vh; }
+        
+        .controles-paginacao { display: flex; justify-content: space-between; align-items: center; background: #eee; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
+        .btn-pag { background: #2196F3; color: white; border: none; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-pag:disabled { background: #ccc; cursor: not-allowed; }
+        #contadorPagina { font-weight: bold; font-size: 16px; color: #333; }
+
+        /* Estilo dos Slots Interativos no Preview */
+        #folhaPreviewVisivel { background: #fafafa; padding: 5px; border-radius: 5px; overflow-x: auto; }
+        
+        .slot-interativo {
+            position: relative;
+            background: #fff;
+            border: 2px dashed #bbb;
+            cursor: pointer;
+            transition: 0.2s;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .slot-interativo.ocupado { border: 2px solid #4CAF50; }
+        .slot-interativo.selecionado { border: 4px solid #2196F3 !important; transform: scale(0.95); box-shadow: 0 4px 10px rgba(33, 150, 243, 0.4); z-index: 10; }
+        
+        .texto-vazio { color: #aaa; font-size: 12px; font-weight: bold; pointer-events: none; }
+
+        /* Botão de Excluir dentro da etiqueta */
+        .btn-excluir {
+            position: absolute; top: 5px; right: 5px; background: #f44336; color: white; border: none;
+            border-radius: 50%; width: 30px; height: 30px; font-size: 16px; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 20;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        .aviso-movimento { background: #E3F2FD; color: #1565C0; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 10px; text-align: center; display: none; }
+
+        /* Container de impressão oculto na tela */
+        #containerImpressaoOculto { display: none; }
+
+        /* ================= ESTILOS DE IMPRESSÃO ================= */
+        @media print {
+            body { padding-bottom: 0; background: white; }
+            .container, .bottom-bar, .controles-paginacao, .btn-acao, .aviso-movimento { display: none !important; }
+            #tabPreview { display: block !important; padding: 0; margin: 0; }
+            #folhaPreviewVisivel { display: none !important; }
+            #containerImpressaoOculto { display: block !important; } /* A impressora pega as folhas originais limpas */
+        }
+    </style>
+</head>
+<body>
+
+<div class="aba-content container" id="tabBipagem">
+    <h3>🌱 Terra Forte - Entrada</h3>
+    
+    <label>1. Carregar HTML do QGIS:</label>
+    <input type="file" id="fileInput" accept=".html">
+    <div id="statusCarregamento" class="status-box" style="display:none;"></div>
+
+    <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
+    
+    <label>2. Adicionar Amostra:</label>
+    <input type="text" id="idInput" placeholder="Aguardando arquivo..." disabled>
+    <button class="btn-acao" id="btnAdicionar" disabled>➕ ADICIONAR AMOSTRA</button>
+    
+    <div style="display: flex; justify-content: space-between; margin-top: 15px; color: #666; font-weight: bold; font-size: 18px;">
+        <span style="color: #2e7d32;">Lidas: <span id="qtdLidas">0</span></span>
+        <span style="color: #c62828;">Faltam: <span id="qtdFaltam">0</span></span>
+    </div>
+</div>
+
+<div class="aba-content" id="tabFaltam">
+    <h3 style="text-align: left; border-bottom: 2px solid #eee; padding-bottom: 10px;">📋 Inventário do Projeto</h3>
+    <p style="color: #666; font-size: 14px;">Vermelho = Faltando | Verde = Já adicionada na folha</p>
+    <div class="grid-pendentes" id="listaPendentes"></div>
+</div>
+
+<div class="aba-content" id="tabPreview">
+    <div id="estiloOriginal"></div>
+    
+    <div style="display: flex; gap: 10px;">
+        <button class="btn-acao" id="btnImprimir">🖨️ IMPRIMIR REDE</button>
+        <button class="btn-acao" id="btnCompartilhar" style="background: #2196F3;">📤 EPSON iOS</button>
+    </div>
+
+    <div class="controles-paginacao" style="margin-top: 15px;">
+        <button class="btn-pag" id="btnAnt" onclick="mudarPagina(-1)">◀ Anterior</button>
+        <span id="contadorPagina">Página 1</span>
+        <button class="btn-pag" id="btnProx" onclick="mudarPagina(1)">Próximo ▶</button>
+    </div>
+
+    <div class="aviso-movimento" id="avisoMover">👆 Etiqueta selecionada! Toque em um espaço vazio para mover.</div>
+
+    <div id="folhaPreviewVisivel"></div>
+    
+    <div id="containerImpressaoOculto"></div>
+</div>
+
+<div class="bottom-bar">
+    <button class="tab-btn active" onclick="mudarAba('tabBipagem', this)">📋 Entrada</button>
+    <button class="tab-btn" onclick="mudarAba('tabFaltam', this)">📊 Painel</button>
+    <button class="tab-btn" onclick="mudarAba('tabPreview', this)">👁️ Grid / Imprimir</button>
+</div>
+
+<script>
+    let bancoDeEtiquetas = {}; 
+    let templateBase = "";     
+    
+    // O Coração do Grid: Um array representando CADA ESPAÇO FÍSICO das folhas
+    let slotsFisicos = []; 
+    let maxPorPagina = 14; 
+    let paginaAtual = 1;
+    let slotSelecionadoGlobal = null; // Guarda o índice do item sendo movido
+
+    // 1. CARREGAR ARQUIVO
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        if (!e.target.files[0]) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const doc = new DOMParser().parseFromString(event.target.result, 'text/html');
+            
+            const styleTag = doc.querySelector('style');
+            if (styleTag) {
+                templateBase = styleTag.innerHTML;
+                document.getElementById('estiloOriginal').innerHTML = `<style>${templateBase}</style>`;
+                
+                const colMatch = templateBase.match(/grid-template-columns:\s*repeat\((\d+)/);
+                const linMatch = templateBase.match(/grid-template-rows:\s*repeat\((\d+)/);
+                if (colMatch && linMatch) maxPorPagina = parseInt(colMatch[1]) * parseInt(linMatch[1]);
+            }
+            
+            bancoDeEtiquetas = {};
+            slotsFisicos = new Array(maxPorPagina).fill(null); // Inicia com 1 folha vazia
+            document.getElementById('listaPendentes').innerHTML = '';
+            
+            doc.querySelectorAll('.etiqueta').forEach(el => {
+                const idDiv = el.querySelector('.id-value');
+                if(idDiv) {
+                    const idText = idDiv.innerText.trim();
+                    bancoDeEtiquetas[idText] = el.outerHTML;
+                    
+                    // Cria tag na aba painel (nasce vermelha)
+                    const tag = document.createElement('div');
+                    tag.className = 'tag-id';
+                    tag.id = `tag-${idText}`;
+                    tag.innerText = idText;
+                    document.getElementById('listaPendentes').appendChild(tag);
+                }
+            });
+
+            const total = Object.keys(bancoDeEtiquetas).length;
+            atualizarContadores();
+
+            const inputId = document.getElementById('idInput');
+            inputId.disabled = false;
+            inputId.placeholder = "Ex: 73";
+            inputId.focus();
+            document.getElementById('btnAdicionar').disabled = false;
+            
+            document.getElementById('statusCarregamento').style.display = 'block';
+            document.getElementById('statusCarregamento').innerText = `✅ ${total} amostras carregadas! (${maxPorPagina}/folha)`;
+            
+            renderizarMotorDeGrid();
+        };
+        reader.readAsText(e.target.files[0]);
+    });
+
+    // 2. ADICIONAR AMOSTRA
+    function adicionarAmostra() {
+        const idInput = document.getElementById('idInput');
+        const id = idInput.value.trim();
+        if (!id) return;
+        
+        if (!bancoDeEtiquetas[id]) {
+            alert(`⚠️ O ID "${id}" não existe no projeto original!`);
+            idInput.value = ''; return;
+        }
+        
+        if (slotsFisicos.includes(id)) {
+            alert(`❌ A amostra "${id}" já está no Grid!`);
+            idInput.value = ''; return;
+        }
+        
+        // Acha o primeiro buraco vazio
+        let indexVazio = slotsFisicos.indexOf(null);
+        
+        // Se a folha encheu, cria uma folha nova (adiciona maxPorPagina nulls)
+        if (indexVazio === -1) {
+            const tamanhoAntigo = slotsFisicos.length;
+            for(let i=0; i<maxPorPagina; i++) slotsFisicos.push(null);
+            indexVazio = tamanhoAntigo;
+        }
+        
+        // Coloca o ID no buraco
+        slotsFisicos[indexVazio] = id;
+        
+        // Fica Verde no Painel
+        document.getElementById(`tag-${id}`).classList.add('lida');
+        
+        idInput.value = '';
+        idInput.focus();
+        atualizarContadores();
+        renderizarMotorDeGrid();
+        
+        // Pisca verde pra confirmar
+        document.body.style.backgroundColor = '#d4edda';
+        setTimeout(() => document.body.style.backgroundColor = '#f4f4f4', 150);
+    }
+
+    document.getElementById('btnAdicionar').addEventListener('click', adicionarAmostra);
+    document.getElementById('idInput').addEventListener('keypress', e => { if (e.key === 'Enter') adicionarAmostra(); });
+
+    // 3. EXCLUIR AMOSTRA (Permite ler de novo)
+    function excluirAmostra(event, idExcluir) {
+        event.stopPropagation(); // Evita que clique na etiqueta ao clicar no "X"
+        
+        const index = slotsFisicos.indexOf(idExcluir);
+        if (index !== -1) {
+            slotsFisicos[index] = null; // Esvazia o espaço
+            
+            // Fica Vermelho de novo no Painel
+            document.getElementById(`tag-${idExcluir}`).classList.remove('lida');
+            
+            // Limpa a seleção se a que foi excluída estava selecionada
+            if(slotSelecionadoGlobal === index) {
+                slotSelecionadoGlobal = null;
+                document.getElementById('avisoMover').style.display = 'none';
+            }
+            
+            atualizarContadores();
+            renderizarMotorDeGrid();
+        }
+    }
+
+    // 4. SISTEMA DE MOVER (Toque e Troque)
+    function interagirComSlot(indexGlobal) {
+        // Se NÃO tem ninguém selecionado e cliquei numa etiqueta cheia: Seleciona ela
+        if (slotSelecionadoGlobal === null) {
+            if (slotsFisicos[indexGlobal] !== null) {
+                slotSelecionadoGlobal = indexGlobal;
+                document.getElementById('avisoMover').style.display = 'block';
+                renderizarMotorDeGrid();
+            }
+        } 
+        // Se JÁ tem alguém selecionado: Troca de lugar com o lugar clicado (seja vazio ou outra etiqueta)
+        else {
+            const idTemporario = slotsFisicos[indexGlobal];
+            slotsFisicos[indexGlobal] = slotsFisicos[slotSelecionadoGlobal];
+            slotsFisicos[slotSelecionadoGlobal] = idTemporario;
+            
+            slotSelecionadoGlobal = null;
+            document.getElementById('avisoMover').style.display = 'none';
+            renderizarMotorDeGrid();
+        }
+    }
+
+    // 5. MOTOR DE RENDERIZAÇÃO E PAGINAÇÃO
+    function renderizarMotorDeGrid() {
+        const totalPaginas = Math.max(1, Math.ceil(slotsFisicos.length / maxPorPagina));
+        if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+
+        document.getElementById('contadorPagina').innerText = `Página ${paginaAtual} de ${totalPaginas}`;
+        document.getElementById('btnAnt').disabled = (paginaAtual === 1);
+        document.getElementById('btnProx').disabled = (paginaAtual === totalPaginas);
+
+        // --- Renderiza o Preview Visual (O que você clica) ---
+        let htmlVisivel = '<div class="folha">';
+        
+        const startIndex = (paginaAtual - 1) * maxPorPagina;
+        const endIndex = startIndex + maxPorPagina;
+        
+        for (let i = startIndex; i < endIndex; i++) {
+            const id = slotsFisicos[i];
+            const isSelecionado = (slotSelecionadoGlobal === i) ? 'selecionado' : '';
+            
+            if (id !== null) {
+                // Monta a etiqueta com o botão Excluir injetado por cima
+                htmlVisivel += `
+                    <div class="slot-interativo ocupado ${isSelecionado}" onclick="interagirComSlot(${i})">
+                        <button class="btn-excluir" onclick="excluirAmostra(event, '${id}')">X</button>
+                        ${bancoDeEtiquetas[id]}
+                    </div>`;
+            } else {
+                // Quadrado vazio com borda tracejada
+                const txt = (slotSelecionadoGlobal !== null) ? 'Soltar aqui' : 'Vazio';
+                htmlVisivel += `
+                    <div class="slot-interativo" onclick="interagirComSlot(${i})">
+                        <span class="texto-vazio">${i+1}. ${txt}</span>
+                    </div>`;
+            }
+        }
+        htmlVisivel += '</div>';
+        document.getElementById('folhaPreviewVisivel').innerHTML = htmlVisivel;
+
+        // --- Renderiza as Folhas Ocultas para a Impressora (Limpo) ---
+        let htmlImpressao = '';
+        for (let p = 0; p < totalPaginas; p++) {
+            htmlImpressao += '<div class="folha">';
+            const startImp = p * maxPorPagina;
+            const endImp = startImp + maxPorPagina;
+            
+            for (let i = startImp; i < endImp; i++) {
+                const id = slotsFisicos[i];
+                if (id !== null) {
+                    htmlImpressao += bancoDeEtiquetas[id];
+                } else {
+                    htmlImpressao += '<div class="etiqueta" style="visibility: hidden; border: none;"></div>';
+                }
+            }
+            htmlImpressao += '</div>';
+        }
+        document.getElementById('containerImpressaoOculto').innerHTML = htmlImpressao;
+    }
+
+    function mudarPagina(direcao) {
+        paginaAtual += direcao;
+        renderizarMotorDeGrid();
+    }
+
+    function atualizarContadores() {
+        const lidas = slotsFisicos.filter(id => id !== null).length;
+        const total = Object.keys(bancoDeEtiquetas).length;
+        document.getElementById('qtdLidas').innerText = lidas;
+        document.getElementById('qtdFaltam').innerText = total - lidas;
+    }
+
+    function mudarAba(idAba, btn) {
+        document.querySelectorAll('.aba-content').forEach(el => el.style.display = 'none');
+        document.getElementById(idAba).style.display = 'block';
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        btn.classList.add('active');
+        if (idAba === 'tabBipagem') document.getElementById('idInput').focus();
+    }
+
+    // BOTÕES FINAIS IMPRESSÃO
+    document.getElementById('btnImprimir').addEventListener('click', () => window.print());
+    document.getElementById('btnCompartilhar').addEventListener('click', async () => {
+        const htmlLimpo = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><style>${templateBase}</style></head><body>${document.getElementById('containerImpressaoOculto').innerHTML}</body></html>`;
+        const blob = new Blob([htmlLimpo], { type: 'text/html' });
+        const file = new File([blob], "Etiquetas_TerraForte.html", { type: 'text/html' });
+        if (navigator.share) {
+            try { await navigator.share({ title: 'Imprimir Lote', files: [file] }); } catch(e){}
+        } else {
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Lote.html'; a.click();
+        }
+    });
+</script>
+</body>
+</html>
