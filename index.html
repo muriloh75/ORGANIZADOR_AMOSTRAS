@@ -14,10 +14,10 @@
         h3 { color: #333; margin-top: 0; text-align: center; }
         label { font-weight: bold; color: #555; display: block; margin-top: 15px; }
         
-        input[type="file"], input[type="text"], input[type="number"] {
+        input[type="file"], input[type="text"], input[type="number"], select {
             width: 100%; padding: 15px; margin: 8px 0; border: 2px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; background: white;
         }
-        input[type="text"]:focus, input[type="number"]:focus { border-color: #4CAF50; outline: none; }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus { border-color: #4CAF50; outline: none; }
         
         .status-box { background: #e8f5e9; border-left: 4px solid #4CAF50; padding: 12px; margin-top: 10px; border-radius: 4px; font-weight: bold; color: #2e7d32; }
         
@@ -38,13 +38,11 @@
         /* ================= ABA: O QUE FALTA ================= */
         #tabFaltam { padding: 20px; background: white; min-height: 80vh; }
         .grid-pendentes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
-        
         .tag-id { padding: 10px 15px; border-radius: 5px; font-weight: bold; font-size: 16px; background: #ffebee; color: #c62828; border: 2px solid #ef9a9a; transition: all 0.3s; }
         .tag-id.lida { background: #e8f5e9; color: #2e7d32; border: 2px solid #81c784; }
 
         /* ================= ABA: PREVIEW E GRID ================= */
         #tabPreview { background: white; padding: 10px; min-height: 80vh; }
-        
         .controles-paginacao { display: flex; justify-content: space-between; align-items: center; background: #eee; padding: 10px; border-radius: 8px; margin-bottom: 15px; }
         .btn-pag { background: #2196F3; color: white; border: none; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .btn-pag:disabled { background: #ccc; cursor: not-allowed; }
@@ -56,10 +54,8 @@
             position: relative; background: #fff; border: 2px dashed #bbb; cursor: pointer;
             transition: 0.2s; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
         }
-        
         .slot-interativo.ocupado { border: 2px solid #4CAF50; }
         .slot-interativo.selecionado { border: 4px solid #2196F3 !important; transform: scale(0.95); box-shadow: 0 4px 10px rgba(33, 150, 243, 0.4); z-index: 10; }
-        
         .texto-vazio { color: #aaa; font-size: 12px; font-weight: bold; pointer-events: none; }
 
         .btn-excluir {
@@ -71,14 +67,24 @@
         
         .aviso-movimento { background: #E3F2FD; color: #1565C0; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 10px; text-align: center; display: none; }
 
-        #containerImpressaoOculto { display: none; }
+        /* Container de impressão oculto (Mas não display: none) para funcionar no iOS */
+        .area-impressao-secreta {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 210mm;
+            background: white;
+            z-index: -1;
+        }
 
         @media print {
             body { padding-bottom: 0; background: white; }
-            .container, .bottom-bar, .controles-paginacao, .btn-acao, .aviso-movimento { display: none !important; }
+            .container, .bottom-bar, .controles-paginacao, .btn-acao, .aviso-movimento, .painel-opcoes-impressao { display: none !important; }
             #tabPreview { display: block !important; padding: 0; margin: 0; }
             #folhaPreviewVisivel { display: none !important; }
-            #containerImpressaoOculto { display: block !important; }
+            
+            /* Na hora que manda pro papel físico, ele traz a folha pra tela */
+            .area-impressao-secreta { position: static !important; width: 100% !important; z-index: 1; }
         }
     </style>
 </head>
@@ -111,14 +117,20 @@
 </div>
 
 <div class="aba-content" id="tabPreview">
-    <div id="estiloOriginal"></div>
-    
-    <div style="display: flex; gap: 10px;">
-        <button class="btn-acao" id="btnImprimir" style="background: #607D8B;">💻 IMPRIMIR (PC)</button>
-        <button class="btn-acao" id="btnGerarPDF" style="background: #E53935;">📄 GERAR PDF (iOS EPSON)</button>
+    <div class="painel-opcoes-impressao" style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <label style="margin-top: 0; color: #1565c0;">O que você deseja imprimir/gerar?</label>
+        <select id="tipoImpressao">
+            <option value="todas">Todas as Páginas</option>
+            <option value="atual">Apenas a Página Atual</option>
+        </select>
+        
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-acao" id="btnImprimir" style="background: #607D8B;">💻 IMPRIMIR (PC)</button>
+            <button class="btn-acao" id="btnGerarPDF" style="background: #E53935;">📄 GERAR PDF (iOS)</button>
+        </div>
     </div>
 
-    <div class="controles-paginacao" style="margin-top: 15px;">
+    <div class="controles-paginacao">
         <button class="btn-pag" id="btnAnt" onclick="mudarPagina(-1)">◀ Anterior</button>
         <span id="contadorPagina">Página 1</span>
         <button class="btn-pag" id="btnProx" onclick="mudarPagina(1)">Próximo ▶</button>
@@ -127,9 +139,9 @@
     <div class="aviso-movimento" id="avisoMover">👆 Etiqueta selecionada! Toque em um espaço vazio para mover.</div>
 
     <div id="folhaPreviewVisivel"></div>
-    
-    <div id="containerImpressaoOculto"></div>
 </div>
+
+<div id="containerImpressaoOculto" class="area-impressao-secreta"></div>
 
 <div class="bottom-bar">
     <button class="tab-btn active" onclick="mudarAba('tabBipagem', this)">📋 Entrada</button>
@@ -156,8 +168,6 @@
             const styleTag = doc.querySelector('style');
             if (styleTag) {
                 templateBase = styleTag.innerHTML;
-                document.getElementById('estiloOriginal').innerHTML = `<style>${templateBase}</style>`;
-                
                 const colMatch = templateBase.match(/grid-template-columns:\s*repeat\((\d+)/);
                 const linMatch = templateBase.match(/grid-template-rows:\s*repeat\((\d+)/);
                 if (colMatch && linMatch) maxPorPagina = parseInt(colMatch[1]) * parseInt(linMatch[1]);
@@ -270,7 +280,8 @@
         document.getElementById('btnAnt').disabled = (paginaAtual === 1);
         document.getElementById('btnProx').disabled = (paginaAtual === totalPaginas);
 
-        let htmlVisivel = '<div class="folha">';
+        // Renderiza apenas o que o usuário vê (Visível)
+        let htmlVisivel = `<style>${templateBase}</style><div class="folha">`;
         const startIndex = (paginaAtual - 1) * maxPorPagina;
         const endIndex = startIndex + maxPorPagina;
         
@@ -286,12 +297,24 @@
         }
         htmlVisivel += '</div>';
         document.getElementById('folhaPreviewVisivel').innerHTML = htmlVisivel;
+    }
 
-        let htmlImpressao = '';
-        for (let p = 0; p < totalPaginas; p++) {
-            htmlImpressao += '<div class="folha" style="page-break-after: always; width: 210mm; height: 297mm;">';
+    // FUNÇÃO QUE MONTA O HTML FINAL BASEADO NA ESCOLHA (Todas vs Atual)
+    function montarHTMLImpressao() {
+        const tipoImpressao = document.getElementById('tipoImpressao').value;
+        const totalPaginas = Math.max(1, Math.ceil(slotsFisicos.length / maxPorPagina));
+        
+        let htmlImpressao = `<style>${templateBase} .folha { margin: 0; box-shadow: none; border: none; background: white; width: 210mm; height: 297mm; }</style>`;
+        
+        // Se escolheu Atual, o loop roda só para a página atual. Se não, roda todas.
+        const paginaInicialLoop = (tipoImpressao === 'atual') ? (paginaAtual - 1) : 0;
+        const paginaFinalLoop = (tipoImpressao === 'atual') ? paginaAtual : totalPaginas;
+
+        for (let p = paginaInicialLoop; p < paginaFinalLoop; p++) {
+            htmlImpressao += '<div class="folha" style="page-break-after: always; padding-top: 10mm; box-sizing: border-box;">';
             const startImp = p * maxPorPagina;
             const endImp = startImp + maxPorPagina;
+            
             for (let i = startImp; i < endImp; i++) {
                 const id = slotsFisicos[i];
                 if (id !== null) {
@@ -302,6 +325,8 @@
             }
             htmlImpressao += '</div>';
         }
+        
+        // Joga esse HTML na div que o celular consegue enxergar
         document.getElementById('containerImpressaoOculto').innerHTML = htmlImpressao;
     }
 
@@ -322,38 +347,25 @@
     }
 
     // ==========================================
-    // 5. GERAÇÃO DE PDF (CORRIGIDA) E IMPRESSÃO
+    // 5. GERAÇÃO DE PDF E IMPRESSÃO NATIVA
     // ==========================================
     
-    // Impressão nativa padrão (Para PC ou Android)
-    document.getElementById('btnImprimir').addEventListener('click', () => window.print());
+    document.getElementById('btnImprimir').addEventListener('click', () => {
+        montarHTMLImpressao();
+        window.print();
+    });
     
-    // Gera PDF via html2pdf usando string HTML (evita tela em branco)
     document.getElementById('btnGerarPDF').addEventListener('click', function() {
         const btn = this;
         btn.innerText = "⏳ GERANDO PDF...";
         btn.disabled = true;
 
-        // Montamos o código HTML completo em memória para o html2pdf processar
-        const conteudoHTML = document.getElementById('containerImpressaoOculto').innerHTML;
-        const htmlParaPDF = `
-            <div style="background: white; width: 210mm; margin: 0; padding: 0;">
-                <style>
-                    ${templateBase}
-                    .folha { 
-                        margin: 0 !important; 
-                        padding-top: 10mm !important; 
-                        box-shadow: none !important; 
-                        border: none !important;
-                        background: white !important;
-                    }
-                    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                </style>
-                ${conteudoHTML}
-            </div>
-        `;
+        // Atualiza o container escondido baseado se é todas ou atual
+        montarHTMLImpressao();
 
-        // Configurações do PDF
+        // Pega o elemento que está vivo no navegador
+        const elementoAlvo = document.getElementById('containerImpressaoOculto');
+
         const opt = {
             margin:       0,
             filename:     'Etiquetas_TerraForte.pdf',
@@ -362,14 +374,14 @@
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        // Passa a string HTML diretamente para a biblioteca
-        html2pdf().set(opt).from(htmlParaPDF).save().then(() => {
-            btn.innerText = "📄 GERAR PDF (iOS EPSON)";
+        // Passa o ELEMENTO físico (e não o texto HTML) para a biblioteca
+        html2pdf().set(opt).from(elementoAlvo).save().then(() => {
+            btn.innerText = "📄 GERAR PDF (iOS)";
             btn.disabled = false;
         }).catch(err => {
             console.error(err);
             alert("Erro ao gerar PDF.");
-            btn.innerText = "📄 GERAR PDF (iOS EPSON)";
+            btn.innerText = "📄 GERAR PDF (iOS)";
             btn.disabled = false;
         });
     });
