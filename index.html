@@ -103,8 +103,14 @@
     <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
     
     <label>2. Adicionar Amostra:</label>
-    <input type="text" id="idInput" placeholder="Aguardando arquivo..." disabled>
-    <button class="btn-acao" id="btnAdicionar" disabled>➕ ADICIONAR AMOSTRA</button>
+<input type="number" 
+       id="idInput" 
+       inputmode="numeric" 
+       pattern="[0-9]*" 
+       placeholder="Aguardando arquivo..." 
+       disabled>
+
+<button class="btn-acao" id="btnAdicionar" disabled>➕ ADICIONAR AMOSTRA</button>
     
     <div style="display: flex; justify-content: space-between; margin-top: 15px; color: #666; font-weight: bold; font-size: 18px;">
         <span style="color: #2e7d32;">Lidas: <span id="qtdLidas">0</span></span>
