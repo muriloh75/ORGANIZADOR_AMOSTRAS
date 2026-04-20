@@ -11,10 +11,11 @@
         h3 { color: #333; margin-top: 0; text-align: center; }
         label { font-weight: bold; color: #555; display: block; margin-top: 15px; }
         
-        input[type="file"], input[type="text"] {
+        /* CORREÇÃO AQUI: Adicionado input[type="number"] para o campo voltar a ter tamanho e ser clicável */
+        input[type="file"], input[type="text"], input[type="number"] {
             width: 100%; padding: 15px; margin: 8px 0; border: 2px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; background: white;
         }
-        input[type="text"]:focus { border-color: #4CAF50; outline: none; }
+        input[type="text"]:focus, input[type="number"]:focus { border-color: #4CAF50; outline: none; }
         
         .status-box { background: #e8f5e9; border-left: 4px solid #4CAF50; padding: 12px; margin-top: 10px; border-radius: 4px; font-weight: bold; color: #2e7d32; }
         
